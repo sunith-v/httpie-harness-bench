@@ -35,6 +35,7 @@ urllib3.disable_warnings()
 FORM_CONTENT_TYPE = f'application/x-www-form-urlencoded; charset={UTF8}'
 JSON_CONTENT_TYPE = 'application/json'
 JSON_ACCEPT = f'{JSON_CONTENT_TYPE}, */*;q=0.5'
+EVENT_STREAM_ACCEPT = 'text/event-stream'
 DEFAULT_UA = f'HTTPie/{__version__}'
 
 IGNORE_CONTENT_LENGTH_METHODS = frozenset([HTTP_OPTIONS])
@@ -344,6 +345,8 @@ def make_request_kwargs(
     if base_headers:
         headers.update(base_headers)
     headers.update(args.headers)
+    if args.stream_sse and 'Accept' not in args.headers:
+        headers['Accept'] = EVENT_STREAM_ACCEPT
     if args.offline and args.chunked and 'Transfer-Encoding' not in headers:
         # When online, we let requests set the header instead to be able more
         # easily verify chunking is taking place.

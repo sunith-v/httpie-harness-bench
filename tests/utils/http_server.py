@@ -79,6 +79,27 @@ def random_encoding(handler):
     handler.wfile.write('0\r\n\r\n'.encode('utf-8'))
 
 
+@TestHandler.handler('GET', '/sse')
+def server_sent_events(handler):
+    handler.send_response(200)
+    handler.send_header('Content-Type', 'text/event-stream')
+    handler.send_header('Transfer-Encoding', 'chunked')
+    handler.end_headers()
+
+    for body in [
+        ': keep-alive\n\n',
+        'event: add\nid: 1\nretry: 1500\ndata: {"b": 2, "a": 1}\n\n',
+        'data: first line\ndata: second line\n\n',
+    ]:
+        encoded = body.encode('utf-8')
+        handler.wfile.write(f'{len(encoded):X}\r\n'.encode('utf-8'))
+        handler.wfile.write(encoded)
+        handler.wfile.write(b'\r\n')
+        handler.wfile.flush()
+
+    handler.wfile.write('0\r\n\r\n'.encode('utf-8'))
+
+
 @TestHandler.handler('POST', '/status/msg')
 def status_custom_msg(handler):
     content_len = int(handler.headers.get('content-length', 0))

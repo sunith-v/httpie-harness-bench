@@ -16,6 +16,7 @@ class ProcessingOptions(NamedTuple):
     traceback: bool = False
 
     stream: bool = False
+    stream_sse: bool = False
     style: str = AUTO_STYLE
     prettify: Union[List[str], PrettyOptions] = PRETTY_STDOUT_TTY_ONLY
 

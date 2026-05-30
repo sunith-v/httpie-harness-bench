@@ -521,6 +521,22 @@ output_options.add_argument(
     """,
 )
 output_options.add_argument(
+    '--stream-sse',
+    action='store_true',
+    default=False,
+    short_help='Render server-sent events as they arrive.',
+    help="""
+    Request and render a Server-Sent Events stream. This sets
+    `Accept: text/event-stream`, disables response buffering, and prints each
+    received event as a labeled block. JSON event data is formatted with the
+    existing output formatter.
+
+    If the response is not `text/event-stream`, HTTPie falls back to normal
+    streamed output.
+
+    """,
+)
+output_options.add_argument(
     '--output',
     '-o',
     type=FileType('a+b'),

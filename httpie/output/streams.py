@@ -1,8 +1,10 @@
 from abc import ABCMeta, abstractmethod
+import json
 from itertools import chain
 from typing import Callable, Iterable, Optional, Union
 
 from .processing import Conversion, Formatting
+from .sse import ServerSentEvent, iter_sse_events
 from ..context import Environment
 from ..encoding import smart_decode, smart_encode, UTF8
 from ..models import HTTPMessage, OutputOptions
@@ -223,6 +225,62 @@ class PrettyStream(EncodedStream):
             chunk = self.decode_chunk(chunk)
         chunk = self.formatting.format_body(content=chunk, mime=self.mime)
         return smart_encode(chunk, self.output_encoding)
+
+
+class ServerSentEventsStream(EncodedStream):
+    """Render a server-sent event stream one parsed event at a time."""
+
+    CHUNK_SIZE = 1
+
+    def __init__(
+        self,
+        formatting: Formatting,
+        **kwargs,
+    ):
+        super().__init__(encoding_overwrite=UTF8, **kwargs)
+        self.formatting = formatting
+
+    def get_headers(self) -> bytes:
+        return self.formatting.format_headers(
+            self.msg.headers).encode(self.output_encoding)
+
+    def get_metadata(self) -> bytes:
+        return self.formatting.format_metadata(
+            self.msg.metadata).encode(self.output_encoding)
+
+    def iter_body(self) -> Iterable[bytes]:
+        for event in iter_sse_events(self.msg.iter_body(self.CHUNK_SIZE)):
+            yield smart_encode(self.render_event(event), self.output_encoding)
+
+    def render_event(self, event: ServerSentEvent) -> str:
+        lines = [f'event: {event.event}']
+        if event.id:
+            lines.append(f'id: {event.id}')
+        if event.retry is not None:
+            lines.append(f'retry: {event.retry}')
+
+        data = event.data
+        if self.is_json(data):
+            lines.append('data:')
+            labels = self.formatting.format_metadata('\n'.join(lines))
+            data = self.formatting.format_body(data, 'application/json').rstrip('\n')
+            return f'{labels}\n{data}\n\n'
+
+        if '\n' in data:
+            lines.append('data:')
+            labels = self.formatting.format_metadata('\n'.join(lines))
+            return f'{labels}\n{data}\n\n'
+
+        lines.append(f'data: {data}')
+        return self.formatting.format_metadata('\n'.join(lines)) + '\n\n'
+
+    @staticmethod
+    def is_json(data: str) -> bool:
+        try:
+            json.loads(data)
+        except ValueError:
+            return False
+        return True
 
 
 class BufferedPrettyStream(PrettyStream):
