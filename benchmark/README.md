@@ -8,7 +8,7 @@ Base state is frozen at tag `bench-base` (httpie/cli master @ `5b604c3`).
 
 ## What we measure
 
-For each harness, across two phases:
+For each harness, across two phases (plan, implement):
 
 - **Tokens / cost** — input, cached-input, output, and reasoning tokens (reported
   separately), converted to USD. GPT-5.5 pricing (per 1M tokens):
@@ -23,35 +23,47 @@ See [`TASK.md`](TASK.md). One task forces every required capability: web search,
 pulling repo context, asking clarifying questions, writing a plan, a multi-file
 refactor + implementation, code review, and pushing a PR.
 
-## The two phases
+## Branch layout — one branch per tool
 
-| Phase | Branch | Deliverable | Counters reset before |
-|-------|--------|-------------|-----------------------|
-| 1 — Plan | `phase-1-plan` | `PLAN.md` + clarifying questions | yes |
-| 2 — Result | `phase-2-result` | implemented feature + PR + self-review | yes |
+Two branches, both forked from `bench-base` so the start state is identical:
 
-Between phases you answer the agent's questions using the **fixed**
-[`ANSWER_KEY.md`](ANSWER_KEY.md) — identical answers for both harnesses, for fairness.
+| Branch | Tool | Holds |
+|--------|------|-------|
+| `codex` | Codex | commit 1 = `PLAN.md` (plan deliverable), commit 2 = implementation |
+| `pi`    | Pi    | commit 1 = `PLAN.md` (plan deliverable), commit 2 = implementation |
 
-## How to run (per harness)
+The two phases survive as the **two commits** on each branch — you still run (and
+measure) the plan session and the implementation session separately, but each tool's
+whole story lives on one branch. The committed `PLAN.md` is graded later from the
+branch; the branch HEAD is graded by the hidden tests.
+
+## How to run (per tool)
 
 ```bash
-# Phase 1 — plan
-git checkout phase-1-plan
-./benchmark/run_phase.sh codex plan   # inside the session type:  /plan
-./benchmark/run_phase.sh pi plan      # inside the session type:  /plannotator
-# (answer questions from ANSWER_KEY.md, identically for both)
+# ----- PLAN phase -----
+git checkout codex && git reset --hard && git clean -fd
+./benchmark/run_phase.sh codex plan      # inside the session type:  /plan
+#   point it at benchmark/TASK.md, answer its questions from ANSWER_KEY.md,
+#   have it save the plan to PLAN.md, exit, then:
+git add PLAN.md && git commit -m "codex: plan"
 
-# Phase 2 — implement + PR
-git checkout phase-2-result
-./benchmark/run_phase.sh codex result
-./benchmark/run_phase.sh pi result
+# ----- IMPLEMENT phase (same branch) -----
+./benchmark/run_phase.sh codex implement
+#   prompt it to implement per TASK.md + ANSWER_KEY.md, exit, then:
+git add -A && git commit -m "codex: implement"
+git push -u origin codex
+gh pr create --base bench-base --head codex --title "codex run" --body "benchmark"
 ```
 
-The plan step uses each tool's **interactive** slash command (`/plan` in codex,
-`/plannotator` in pi) — typed inside the running session, not as a shell flag.
-The runner launches the CLI, times the session, then prompts you for the token
-counts and writes `benchmark/metrics/<harness>-<phase>-<trial>.json` with cost filled in.
+Repeat the whole block on the `pi` branch with `/plannotator`. The plan step uses
+each tool's **interactive** slash command (`/plan` in codex, `/plannotator` in pi) —
+typed inside the running session. `run_phase.sh` checks you're on the right branch,
+times the session, prompts you for token counts, and writes
+`benchmark/metrics/<tool>-<phase>-<trial>.json` with cost filled in.
+
+For extra trials, branch per trial off the tool branch's base, e.g.
+`git checkout -b codex-trial2 bench-base` (then re-add the `benchmark/` scaffold or
+branch from `codex` before its first commit).
 
 Each invocation brackets the run with timestamps and writes a
 `benchmark/metrics/<harness>-<phase>-<trial>.json` stub for you to fill from the
@@ -62,8 +74,8 @@ median + range, never a single run.
 
 ## Fairness rules (do not skip)
 
-1. Identical start: every run begins at the phase branch HEAD (which descends from
-   `bench-base`).
+1. Identical start: both tool branches fork from `bench-base`; reset clean before
+   each phase.
 2. Identical prompt (`TASK.md`) and identical answers (`ANSWER_KEY.md`).
 3. Identical allowed tools + network policy + model sampling settings.
 4. **Block the `github.com/httpie/cli` upstream domain** during runs so the agent

@@ -28,7 +28,8 @@ are testing is whether the harness asks good clarifying questions before buildin
 - **Multi-file refactor + implementation** — CLI flag + request behavior +
   streaming/buffering + output formatting + tests + docs.
 - **Code review** — self-review before opening the PR.
-- **Push to GitHub** — open the PR against the `phase-2-result` branch of this fork.
+- **Push to GitHub** — commit and push your work, then open a PR for this tool's
+  branch against `bench-base`.
 
 ## Open design decisions (do NOT resolve these yourself — ask)
 
