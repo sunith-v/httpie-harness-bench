@@ -11,7 +11,9 @@ Base state is frozen at tag `bench-base` (httpie/cli master @ `5b604c3`).
 For each harness, across two phases:
 
 - **Tokens / cost** — input, cached-input, output, and reasoning tokens (reported
-  separately), converted to USD from the model price sheet.
+  separately), converted to USD. GPT-5.5 pricing (per 1M tokens):
+  **input $5.00 · cached input $0.50 · output $30.00** (reasoning billed as output).
+  `run_phase.sh` computes `cost_usd` automatically from the counts you paste in.
 - **Speed** — wall-clock per phase, plus time-to-first-edit and tool-call count.
 - **Quality** — hidden acceptance tests + repo's own suite + a scored rubric.
 
@@ -34,16 +36,22 @@ Between phases you answer the agent's questions using the **fixed**
 ## How to run (per harness)
 
 ```bash
-# Phase 1
+# Phase 1 — plan
 git checkout phase-1-plan
-./benchmark/run_phase.sh codex plan      # then: ./benchmark/run_phase.sh pi plan
+./benchmark/run_phase.sh codex plan   # inside the session type:  /plan
+./benchmark/run_phase.sh pi plan      # inside the session type:  /plannotator
 # (answer questions from ANSWER_KEY.md, identically for both)
 
-# Phase 2
+# Phase 2 — implement + PR
 git checkout phase-2-result
 ./benchmark/run_phase.sh codex result
 ./benchmark/run_phase.sh pi result
 ```
+
+The plan step uses each tool's **interactive** slash command (`/plan` in codex,
+`/plannotator` in pi) — typed inside the running session, not as a shell flag.
+The runner launches the CLI, times the session, then prompts you for the token
+counts and writes `benchmark/metrics/<harness>-<phase>-<trial>.json` with cost filled in.
 
 Each invocation brackets the run with timestamps and writes a
 `benchmark/metrics/<harness>-<phase>-<trial>.json` stub for you to fill from the
