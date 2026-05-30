@@ -315,6 +315,19 @@ more often and in smaller chunks.
 
 
 
+.IP "\fB\,--stream-sse\/\fR"
+
+
+Request and render a Server-Sent Events stream. This sets
+`Accept: text/event-stream`, disables response buffering, and prints each
+received event as a labeled block. JSON event data is formatted with the
+existing output formatter.
+
+If the response is not `text/event-stream`, HTTPie falls back to normal
+streamed output.
+
+
+
 .IP "\fB\,--output\/\fR, \fB\,-o\/\fR \fI\,FILE\/\fR"
 
 

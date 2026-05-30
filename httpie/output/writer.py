@@ -16,6 +16,7 @@ from .models import ProcessingOptions
 from .processing import Conversion, Formatting
 from .streams import (
     BaseStream, BufferedPrettyStream, EncodedStream, PrettyStream, RawStream,
+    ServerSentEventsStream,
 )
 from ..utils import parse_content_type_header
 
@@ -43,7 +44,11 @@ def write_message(
         ),
         # NOTE: `env.stdout` will in fact be `stderr` with `--download`
         'outfile': env.stdout,
-        'flush': env.stdout_isatty or processing_options.stream
+        'flush': (
+            env.stdout_isatty
+            or processing_options.stream
+            or processing_options.stream_sse
+        )
     }
     try:
         if env.is_windows and 'colors' in processing_options.get_prettify(env):
@@ -159,15 +164,30 @@ def get_stream_type_and_kwargs(
     """Pick the right stream type and kwargs for it based on `env` and `args`.
 
     """
-    is_stream = processing_options.stream
+    is_stream = processing_options.stream or processing_options.stream_sse
     prettify_groups = processing_options.get_prettify(env)
-    if not is_stream and message_type is HTTPResponse:
+    is_event_stream = False
+    if message_type is HTTPResponse:
         # If this is a response, then check the headers for determining
         # auto-streaming.
         raw_content_type_header = headers.get('Content-Type', None)
         if raw_content_type_header:
             content_type_header, _ = parse_content_type_header(raw_content_type_header)
-            is_stream = (content_type_header == 'text/event-stream')
+            is_event_stream = content_type_header.lower() == 'text/event-stream'
+            if not is_stream:
+                is_stream = is_event_stream
+
+    if processing_options.stream_sse and message_type is HTTPResponse and is_event_stream:
+        return ServerSentEventsStream, {
+            'env': env,
+            'formatting': Formatting(
+                env=env,
+                groups=prettify_groups,
+                color_scheme=processing_options.style,
+                explicit_json=processing_options.json,
+                format_options=processing_options.format_options,
+            )
+        }
 
     if not env.stdout_isatty and not prettify_groups:
         stream_class = RawStream

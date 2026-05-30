@@ -2070,6 +2070,14 @@ You can use the `--stream, -S` flag to make two things happen:
 
 The `--stream` option is automatically enabled when the response headers include `Content-Type: text/event-stream`.
 
+For Server-Sent Events, use `--stream-sse` to request `text/event-stream`
+and render each received event as a labeled block as soon as it arrives.
+JSON event data is formatted using the same formatter as regular JSON responses:
+
+```bash
+$ http --stream-sse example.org/events
+```
+
 ### Example use cases
 
 Prettified streamed response:
@@ -2598,4 +2606,3 @@ BSD-3-Clause: [LICENSE](https://github.com/httpie/cli/blob/master/LICENSE).
 ### Authors
 
 [Jakub Roztocil](https://roztocil.co) ([@jakubroztocil](https://twitter.com/jakubroztocil)) created HTTPie and [these fine people](https://github.com/httpie/cli/blob/master/AUTHORS.md) have contributed.
-
